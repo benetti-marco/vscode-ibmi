@@ -1,5 +1,5 @@
 import path from "path";
-import { commands, Disposable, l10n, TreeItem, Uri, window, WorkspaceFolder } from "vscode";
+import { commands, Disposable, l10n, TreeItem, Uri, window, workspace, WorkspaceFolder } from "vscode";
 import IBMi from "../api/IBMi";
 import { Tools } from "../api/Tools";
 import Instance from "../Instance";
@@ -68,23 +68,25 @@ export function registerActionsCommands(instance: Instance): Disposable[] {
 
           const config = connection.getConfig();
 
-          for (const openedEditor of window.visibleTextEditors) {
-            const path = openedEditor.document.uri.path;
-            if (uris.some(uri => uri.path === path) && openedEditor.document.isDirty) {
+          // Every open document, not only the visible ones: with task.saveBeforeRun set to "never"
+          // a modified member in a background tab would otherwise be compiled without its changes
+          for (const document of workspace.textDocuments) {
+            const path = document.uri.path;
+            if (uris.some(uri => uri.path === path) && document.isDirty) {
               if (config.autoSaveBeforeAction) {
-                await openedEditor.document.save();
+                await document.save();
               } else {
                 actionMessage = l10n.t(`File {0} must be saved to run Actions.`, path);
                 const result = await window.showWarningMessage(actionMessage, `Save`, `Save automatically`, `Cancel`);
                 switch (result) {
                   case `Save`:
-                    await openedEditor.document.save();
+                    await document.save();
                     break;
 
                   case `Save automatically`:
                     config.autoSaveBeforeAction = true;
                     await IBMi.connectionManager.update(config);
-                    await openedEditor.document.save();
+                    await document.save();
                     break;
 
                   default:
