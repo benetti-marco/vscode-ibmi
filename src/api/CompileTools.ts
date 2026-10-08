@@ -10,9 +10,15 @@ export namespace CompileTools {
   export const DID_NOT_RUN = -123;
   const HIDE_MESSAGE_IDS = [`CPF3485`, `SQL0462`];
 
+  // The SQL job lives as long as the connection, so its job log keeps growing.
+  // QSYS2.JOBLOG_INFO reads the whole job log on every call, and it is called after every
+  // command, so commands get slower over time. Past this many messages the job log is trimmed.
+  const JOBLOG_TRIM_THRESHOLD = 1000;
+
   const ileQueue = new SimpleQueue();
 
   let jobLogOrdinal = 0;
+  let jobLogTrimFailed = false;
 
   interface RunCommandEvents {
     writeEvent?: (content: string) => void
@@ -23,6 +29,7 @@ export namespace CompileTools {
   export function reset() {
     ileQueue.clear();
     jobLogOrdinal = 0;
+    jobLogTrimFailed = false;
   }
 
   /**
@@ -158,6 +165,10 @@ export namespace CompileTools {
               if (!start || !connection.getConfig().keepActionSpooledFiles) {
                 await connection.runSQL(`@QSYS/DLTSPLF FILE(*SELECT) SELECT(*CURRENT *ALL *ALL ${connection.splfUserData})`);
               }
+
+              if (jobLogOrdinal > JOBLOG_TRIM_THRESHOLD && !jobLogTrimFailed) {
+                await trimJobLog(connection);
+              }
             });
 
             break;
@@ -177,6 +188,28 @@ export namespace CompileTools {
     }
     else {
       throw new Error("Please connect to an IBM i");
+    }
+  }
+
+  /**
+   * Removes the messages of the ended call stack entries from the SQL job's job log,
+   * then realigns the job log position on what is left.
+   */
+  async function trimJobLog(connection: IBMi) {
+    try {
+      // RMVMSG is not allowed through QCMDEXC (CPD0031), so the QMHRMVPM API is called directly:
+      // call stack entry *ALLINACT, counter 0, blank message key, remove *ALL, error code 0
+      await connection.runSQL(`@QSYS/CALL PGM(QSYS/QMHRMVPM) PARM('*ALLINACT' X'00000000' '    ' '*ALL' X'00000000')`);
+    } catch (e) {
+      // Trimming is only an optimisation: if it fails, do not try again on every command
+      jobLogTrimFailed = true;
+    }
+
+    try {
+      const [row] = await connection.runSQL(`select count(*) as MESSAGES from table(qsys2.joblog_info('*'))`);
+      jobLogOrdinal = Number(row?.MESSAGES) || 0;
+    } catch (e) {
+      // Keep the current position
     }
   }
 
