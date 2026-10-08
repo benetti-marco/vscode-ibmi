@@ -1169,6 +1169,18 @@
 				"category": "IBM i"
 			},
 			{
+				"command": "code-for-ibmi.member.nextDateSearchBlock",
+				"enablement": "code-for-ibmi:connected",
+				"title": "Go to Next Source Date Block",
+				"category": "IBM i"
+			},
+			{
+				"command": "code-for-ibmi.member.previousDateSearchBlock",
+				"enablement": "code-for-ibmi:connected",
+				"title": "Go to Previous Source Date Block",
+				"category": "IBM i"
+			},
+			{
 				"command": "code-for-ibmi.selectForCompare",
 				"enablement": "code-for-ibmi:connected",
 				"title": "Select for Compare",
@@ -2010,6 +2022,16 @@
 			}
 		],
 		"keybindings": [
+			{
+				"command": "code-for-ibmi.member.nextDateSearchBlock",
+				"key": "alt+f5",
+				"when": "editorTextFocus && resourceScheme == member && code-for-ibmi:sourceDateSearchActive"
+			},
+			{
+				"command": "code-for-ibmi.member.previousDateSearchBlock",
+				"key": "shift+alt+f5",
+				"when": "editorTextFocus && resourceScheme == member && code-for-ibmi:sourceDateSearchActive"
+			},
 			{
 				"command": "code-for-ibmi.runAction",
 				"key": "ctrl+e",
