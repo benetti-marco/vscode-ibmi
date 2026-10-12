@@ -892,7 +892,9 @@ export default class IBMiContent {
     // Escape names for shell
     const pathList: string[] = [];
     for (const file of files) {
-      pathList.push(Tools.qualifyPath(inAmerican(file.library), inAmerican(file.name), inAmerican(member), await this.ibmi.getLibraryIAsp(file.library), true));
+      const memberPath = Tools.qualifyPath(inAmerican(file.library), inAmerican(file.name), inAmerican(member), await this.ibmi.getLibraryIAsp(file.library), true);
+      // Without escaping, the shell expands $1 in a name like GIRDAT$1 and looks for GIRDAT
+      pathList.push(memberPath.replace(/\$/g, `\\$`));
     }
 
     const command = `for f in ${pathList.join(' ').toUpperCase()}; do if [ -f $f ]; then echo $f; break; fi; done`;
